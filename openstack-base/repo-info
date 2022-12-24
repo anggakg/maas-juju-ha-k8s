@@ -1,0 +1,6 @@
+commit-sha-1: 78ba4807fc3a508072d0fd361a49444771470864
+commit-short: 78ba480
+branch: charmhub-migration
+remote: git@github.com:openstack-charmers/openstack-bundles.git
+info-generated: Tue Jun 28 03:56:01 AM UTC 2022
+note: This file should exist only in a built or released bundle artifact (not in the bundle source code tree).

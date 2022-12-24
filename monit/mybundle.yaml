@@ -1,0 +1,175 @@
+series: focal
+applications:
+  calico:
+    charm: calico
+    channel: stable
+    revision: 54
+    resources:
+      calico: 52
+      calico-arm64: 52
+      calico-node-image: 52
+    options:
+      vxlan: Always
+    annotations:
+      gui-x: "475"
+      gui-y: "605"
+  containerd:
+    charm: containerd
+    channel: stable
+    revision: 41
+    annotations:
+      gui-x: "475"
+      gui-y: "800"
+  easyrsa:
+    charm: easyrsa
+    channel: stable
+    revision: 26
+    resources:
+      easyrsa: 2
+    num_units: 1
+    to:
+    - "7"
+    annotations:
+      gui-x: "90"
+      gui-y: "420"
+    constraints: arch=amd64
+  etcd:
+    charm: etcd
+    channel: stable
+    revision: 718
+    resources:
+      core: 0
+      etcd: 3
+      snapshot: 0
+    num_units: 3
+    to:
+    - "7"
+    - "8"
+    - "9"
+    options:
+      channel: 3.4/stable
+    annotations:
+      gui-x: "800"
+      gui-y: "420"
+    constraints: arch=amd64
+    storage:
+      data: loop,1024M
+  keepalived:
+    charm: keepalived
+    channel: stable
+    revision: 27
+    options:
+      vip_hostname: k8s.btech.com
+      virtual_ip: 10.10.10.100
+  kubeapi-load-balancer:
+    charm: kubeapi-load-balancer
+    channel: stable
+    revision: 42
+    num_units: 1
+    to:
+    - "13"
+    expose: true
+    annotations:
+      gui-x: "450"
+      gui-y: "250"
+    constraints: arch=amd64
+  kubernetes-control-plane:
+    charm: kubernetes-control-plane
+    channel: stable
+    revision: 204
+    resources:
+      cdk-addons: 4
+      cni-amd64: 195
+      cni-arm64: 195
+      cni-s390x: 195
+      core: 4
+      kube-apiserver: 4
+      kube-controller-manager: 4
+      kube-proxy: 4
+      kube-scheduler: 4
+      kubectl: 4
+    num_units: 3
+    to:
+    - "7"
+    - "8"
+    - "9"
+    options:
+      channel: 1.25/stable
+    annotations:
+      gui-x: "800"
+      gui-y: "850"
+    constraints: arch=amd64
+  kubernetes-worker:
+    charm: kubernetes-worker
+    channel: stable
+    revision: 70
+    resources:
+      cni-amd64: 70
+      cni-arm64: 70
+      cni-s390x: 70
+      core: 1
+      kube-proxy: 1
+      kubectl: 1
+      kubelet: 1
+    num_units: 3
+    to:
+    - "10"
+    - "11"
+    - "12"
+    expose: true
+    options:
+      channel: 1.25/stable
+    annotations:
+      gui-x: "90"
+      gui-y: "850"
+    constraints: arch=amd64
+machines:
+  "7":
+    constraints: arch=amd64 cpu-cores=4 mem=8192 root-disk=51200
+  "8":
+    constraints: arch=amd64 cpu-cores=4 mem=8192 root-disk=51200
+  "9":
+    constraints: arch=amd64 cpu-cores=4 mem=8192 root-disk=51200
+  "10":
+    constraints: arch=amd64 cpu-cores=4 mem=4096 root-disk=51200
+  "11":
+    constraints: arch=amd64 cpu-cores=4 mem=4096 root-disk=51200
+  "12":
+    constraints: arch=amd64 cpu-cores=4 mem=4096 root-disk=51200
+  "13":
+    constraints: arch=amd64 cpu-cores=8 mem=8192 root-disk=51200
+relations:
+- - kubernetes-control-plane:loadbalancer-external
+  - kubeapi-load-balancer:lb-consumers
+- - kubernetes-control-plane:loadbalancer-internal
+  - kubeapi-load-balancer:lb-consumers
+- - kubernetes-control-plane:kube-control
+  - kubernetes-worker:kube-control
+- - kubernetes-control-plane:certificates
+  - easyrsa:client
+- - etcd:certificates
+  - easyrsa:client
+- - kubernetes-control-plane:etcd
+  - etcd:db
+- - kubernetes-worker:certificates
+  - easyrsa:client
+- - kubeapi-load-balancer:certificates
+  - easyrsa:client
+- - calico:etcd
+  - etcd:db
+- - calico:cni
+  - kubernetes-control-plane:cni
+- - calico:cni
+  - kubernetes-worker:cni
+- - containerd:containerd
+  - kubernetes-worker:container-runtime
+- - containerd:containerd
+  - kubernetes-control-plane:container-runtime
+- - keepalived:juju-info
+  - kubeapi-load-balancer:juju-info
+- - keepalived:lb-sink
+  - kubeapi-load-balancer:website
+- - keepalived:loadbalancer
+  - kubernetes-control-plane:loadbalancer
+- - keepalived:website
+  - kubernetes-worker:kube-api-endpoint
