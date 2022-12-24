@@ -1,4 +1,4 @@
-# maas-juju-ha-k8s
+# maas-juju-k8s
 
 ### install maas
 ```
@@ -12,7 +12,7 @@ sudo snap install maas-test-db
 ### clone repository
 ```
 cd ~
-git clone https://github.com/anggakg/maas-juju-ha-k8s.git
+git clone https://github.com/anggakg/maas-juju-k8s.git
 ```
 
 ### get local interface name
@@ -33,7 +33,7 @@ sudo apt-get install iptables-persistent -y
 
 ### LXD init
 ```
-sudo cat maas-juju-ha-k8s/lxd.conf | lxd init --preseed
+sudo cat maas-juju-k8s/lxd.conf | lxd init --preseed
 ```
 
 ### verify LXD network config
@@ -88,6 +88,32 @@ maas admin tags create name=juju-controller comment='This tag should to machines
 maas admin tags create name=metal comment='This tag should to machines that will be used as bare metal'
 ```
 
+### add a VM for the juju controller
+```
+maas admin vm-host compose $VM_HOST_ID cores=8 memory=4096 architecture="amd64/generic" \
+storage="main:25(pool1)" hostname="juju-controller"
+# add tag
+export JUJU_SYSID=$(maas admin machines read | jq  '.[] 
+| select(."hostname"=="juju-controller") 
+| .["system_id"]' | tr -d '"')
+maas admin tag update-nodes "juju-controller" add=$JUJU_SYSID
+```
+
+### juju setup
+```
+cd ~
+sudo snap install juju --classic
+sed -i "s/IP_ADDRESS/$IP_ADDRESS/" maas-juju-k8s/maas-cloud.yaml
+juju add-cloud --local maas-cloud maas-juju-k8s/maas-cloud.yaml
+juju add-credential maas-cloud
+juju clouds --local
+juju credentials
+# Bootstrap the maas-cloud
+juju bootstrap maas-cloud --bootstrap-constraints "tags=juju-controller mem=4G"
+# open dashboard
+juju dashboard
+```
+
 ### download charmed-kubernetes (optional)
 ```
 juju download charmed-kubernetes --channel latest/stable --filepath charmed-kubernetes-latest-stable.bundle
@@ -136,4 +162,15 @@ juju add-relation kubernetes-worker:juju-info telegraf:juju-info
 juju add-relation kubernetes-worker:scrape prometheus2:scrape
 juju add-relation etcd:grafana grafana:dashboards
 juju add-relation etcd:prometheus prometheus2:manual-jobs
+```
+
+### Ceph
+```
+juju deploy -n 3 ceph-mon --to lxd:6,lxd:7,lxd:8
+juju deploy --config maas-baremetal-k8s-tutorial/ceph-osd.yaml cs:ceph-osd -n 3 --to 6,7,8
+# relate ceph-mon and ceph-osd
+juju add-relation ceph-mon ceph-osd
+# add storage relations
+juju add-relation ceph-mon:admin kubernetes-control-plane
+juju add-relation ceph-mon:client kubernetes-control-plane
 ```
